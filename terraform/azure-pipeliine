@@ -1,0 +1,88 @@
+trigger:
+ branches:
+   exclude:
+    - feature/terraform-backend
+   include:
+     - feature/AKS
+pool:
+  name: 'payment-agent-pool'
+  demands:
+    - terraform
+
+
+stages:
+- stage: 
+  jobs:
+    - job: 'init'
+      steps:
+      - task: TerraformTaskV4@4
+        displayName: 'initializing'
+        inputs:
+          provider: 'azurerm'
+          command: 'init'
+          backendServiceArm: 'Free Trial(a39fcf6d-07c6-4552-9563-f8611057efad)'
+          backendAzureRmResourceGroupName: 'dev-rg'
+          backendAzureRmStorageAccountName: 'statesa1'
+          backendAzureRmContainerName: 'terraform-container'
+          backendAzureRmKey: 'state.tfstate'
+
+      - task: TerraformTaskV4@4
+        displayName: 'validation'
+        inputs:
+          provider: 'azurerm'
+          command: 'validate'
+
+    - job: apply
+      dependsOn: 'init'
+      steps:
+        - task: TerraformTaskV4@4
+          displayName: 're-initializing'
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            commandOptions: '-reconfigure'
+            backendServiceArm: 'Free Trial(a39fcf6d-07c6-4552-9563-f8611057efad)'
+            backendAzureRmResourceGroupName: 'walmart'
+            backendAzureRmStorageAccountName: 'statesa1'
+            backendAzureRmContainerName: 'terraform-container'
+            backendAzureRmKey: 'state.tfstate'
+
+        - task: TerraformTaskV4@4
+          displayName: 'plan'
+          inputs:
+            provider: 'azurerm'
+            command: 'plan'
+            commandOptions: '-out=tfplan'
+            environmentServiceNameAzureRM: 'Free Trial(a39fcf6d-07c6-4552-9563-f8611057efad)'
+
+        - task: TerraformTaskV4@4
+          displayName: 'apply'
+          inputs:
+            provider: 'azurerm'
+            command: 'apply'
+            environmentServiceNameAzureRM: 'Free Trial(a39fcf6d-07c6-4552-9563-f8611057efad)'
+            commandOptions: '-auto-approve tfplan'
+
+    - job: 'destroy'
+      displayName: 'Terraform Destroy'
+      dependsOn: 'apply'
+      condition: always()
+      steps:
+        - task: TerraformTaskV4@4
+          displayName: 'destroy initialization'
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            backendServiceArm: 'Free Trial(a39fcf6d-07c6-4552-9563-f8611057efad)'
+            backendAzureRmResourceGroupName: 'walmart'
+            backendAzureRmStorageAccountName: 'statesa1'
+            backendAzureRmContainerName: 'terraform-container'
+            backendAzureRmKey: 'state.tfstate'
+
+        - task: TerraformTaskV4@4
+          displayName: 'destroy'
+          inputs:
+            provider: 'azurerm'
+            command: 'destroy'
+            environmentServiceNameAzureRM: 'Free Trial(a39fcf6d-07c6-4552-9563-f8611057efad)'
+            commandOptions: '-auto-approve'
