@@ -1,0 +1,88 @@
+trigger:
+ branches:
+   include:
+    - feature/updating-rg
+pool:
+  name: 'pool-1'
+  demands:
+    - terraform
+
+
+
+stages:
+- stage: 
+  jobs:
+    - job: 'init'
+      steps:
+      - task: TerraformTaskV4@4
+        displayName: 'initializing'
+        inputs:
+          provider: 'azurerm'
+          command: 'init'
+          backendServiceArm: $(backendServiceArm)
+          backendAzureRmResourceGroupName: $(backendAzureRmResourceGroupName)
+          backendAzureRmStorageAccountName: $(backendAzureRmStorageAccountName)
+          backendAzureRmContainerName: 'terraform-container'
+          backendAzureRmKey: $(backendAzureRmKey)
+
+      - task: TerraformTaskV4@4
+        displayName: 'validation'
+        inputs:
+          provider: 'azurerm'
+          command: 'validate'
+
+    - job: apply
+      dependsOn: 'init'
+      steps:
+        - task: TerraformTaskV4@4
+          displayName: 're-initializing'
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            commandOptions: '-reconfigure'
+            backendServiceArm: $(backendServiceArm)
+            backendAzureRmResourceGroupName: $(backendAzureRmResourceGroupName)
+            backendAzureRmStorageAccountName: $(backendAzureRmStorageAccountName)
+            backendAzureRmContainerName: 'terraform-container'
+            backendAzureRmKey: $(backendAzureRmKey)
+
+        - task: TerraformTaskV4@4
+          displayName: 'plan'
+          inputs:
+            provider: 'azurerm'
+            command: 'plan'
+            commandOptions: '-out=tfplan'
+            environmentServiceNameAzureRM: $(backendServiceArm)
+
+        - task: TerraformTaskV4@4
+          displayName: 'apply'
+          inputs:
+            provider: 'azurerm'
+            command: 'apply'
+            environmentServiceNameAzureRM: $(backendServiceArm)
+            commandOptions: '-auto-approve tfplan'
+
+    - job: 'destroy'
+      displayName: 'Terraform Destroy'
+      dependsOn: 'apply'
+      condition: always()
+      steps:
+        - task: TerraformTaskV4@4
+          displayName: 'destroy initialization'
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            backendServiceArm: $(backendServiceArm)
+            backendAzureRmResourceGroupName: $(backendAzureRmResourceGroupName)
+            backendAzureRmStorageAccountName: $(backendAzureRmStorageAccountName)
+            backendAzureRmContainerName: 'terraform-container'
+            backendAzureRmKey: $(backendAzureRmKey)
+
+
+        - task: TerraformTaskV4@4
+          displayName: 'destroy'
+          inputs:
+            provider: 'azurerm'
+            command: 'destroy'
+            environmentServiceNameAzureRM: $(backendServiceArm)
+            commandOptions: '-auto-approve'
