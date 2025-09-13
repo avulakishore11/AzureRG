@@ -24,7 +24,7 @@ provider "azurerm" {
 
 
 resource"resource_group_name" "dev-rg" {
-    name = "dev-rg"
+    name = "dev096512-rg"
     location = "east_us"
 
 }
