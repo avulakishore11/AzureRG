@@ -7,16 +7,6 @@ terraform {
   }
 }
 
-# terrafrom remote backend storage
-terraform {
-  backend "azurerm" {
-    resource_group_name   = "dev-rg"
-    storage_account_name  = "sa286"
-    container_name        = "terraform-container"
-    key                   = "state.tfstate"
-  }
-}
-
 provider "azurerm" {
   features {}
 
